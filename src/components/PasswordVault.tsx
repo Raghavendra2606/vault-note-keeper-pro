@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { Plus, Eye, EyeOff, Copy, Edit, Trash2, Shield } from 'lucide-react';
+import { Plus, Eye, EyeOff, Copy, Edit, Trash2, Shield, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 interface Password {
   id: string;
@@ -18,10 +19,18 @@ interface Password {
 const PasswordVault = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editingPassword, setEditingPassword] = useState<Password | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+  const [formData, setFormData] = useState({
+    siteName: '',
+    username: '',
+    password: '',
+    category: ''
+  });
+  const { toast } = useToast();
 
   // Mock data - will be replaced with encrypted Supabase data
-  const [passwords] = useState<Password[]>([
+  const [passwords, setPasswords] = useState<Password[]>([
     {
       id: '1',
       siteName: 'Gmail',
@@ -48,6 +57,87 @@ const PasswordVault = () => {
     }
   ]);
 
+  const openModal = (password?: Password) => {
+    if (password) {
+      setEditingPassword(password);
+      setFormData({
+        siteName: password.siteName,
+        username: password.username,
+        password: password.password,
+        category: password.category || ''
+      });
+    } else {
+      setEditingPassword(null);
+      setFormData({
+        siteName: '',
+        username: '',
+        password: '',
+        category: ''
+      });
+    }
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingPassword(null);
+    setFormData({
+      siteName: '',
+      username: '',
+      password: '',
+      category: ''
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.siteName.trim() || !formData.username.trim() || !formData.password.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (editingPassword) {
+      // Update existing password
+      setPasswords(prev => prev.map(pwd => 
+        pwd.id === editingPassword.id 
+          ? { ...pwd, ...formData, category: formData.category || undefined }
+          : pwd
+      ));
+      toast({
+        title: "Success",
+        description: "Password updated successfully!"
+      });
+    } else {
+      // Create new password
+      const newPassword: Password = {
+        id: Date.now().toString(),
+        ...formData,
+        category: formData.category || undefined,
+        createdAt: new Date().toISOString()
+      };
+      setPasswords(prev => [newPassword, ...prev]);
+      toast({
+        title: "Success",
+        description: "Password saved successfully!"
+      });
+    }
+    
+    closeModal();
+  };
+
+  const deletePassword = (id: string) => {
+    setPasswords(prev => prev.filter(pwd => pwd.id !== id));
+    toast({
+      title: "Success",
+      description: "Password deleted successfully!"
+    });
+  };
+
   const togglePasswordVisibility = (id: string) => {
     const newVisible = new Set(visiblePasswords);
     if (newVisible.has(id)) {
@@ -58,10 +148,12 @@ const PasswordVault = () => {
     setVisiblePasswords(newVisible);
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
-    // Note: Toast notification will be added after Supabase integration
-    console.log('Copied to clipboard');
+    toast({
+      title: "Copied!",
+      description: `${label} copied to clipboard.`
+    });
   };
 
   const filteredPasswords = passwords.filter(password =>
@@ -86,7 +178,7 @@ const PasswordVault = () => {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-3xl font-bold text-gray-900">Password Vault</h1>
-          <Button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={() => openModal()} className="bg-blue-600 hover:bg-blue-700">
             <Plus size={20} className="mr-2" />
             Add Password
           </Button>
@@ -119,10 +211,16 @@ const PasswordVault = () => {
               <div className="flex items-start justify-between">
                 <CardTitle className="text-lg">{password.siteName}</CardTitle>
                 <div className="flex space-x-2">
-                  <button className="text-gray-400 hover:text-blue-600">
+                  <button 
+                    onClick={() => openModal(password)}
+                    className="text-gray-400 hover:text-blue-600"
+                  >
                     <Edit size={16} />
                   </button>
-                  <button className="text-gray-400 hover:text-red-600">
+                  <button 
+                    onClick={() => deletePassword(password.id)}
+                    className="text-gray-400 hover:text-red-600"
+                  >
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -139,7 +237,7 @@ const PasswordVault = () => {
                 <div className="flex items-center space-x-2">
                   <span className="text-gray-900">{password.username}</span>
                   <button
-                    onClick={() => copyToClipboard(password.username)}
+                    onClick={() => copyToClipboard(password.username, 'Username')}
                     className="text-gray-400 hover:text-blue-600"
                   >
                     <Copy size={14} />
@@ -167,7 +265,7 @@ const PasswordVault = () => {
                     )}
                   </button>
                   <button
-                    onClick={() => copyToClipboard(password.password)}
+                    onClick={() => copyToClipboard(password.password, 'Password')}
                     className="text-gray-400 hover:text-blue-600"
                   >
                     <Copy size={14} />
@@ -191,17 +289,88 @@ const PasswordVault = () => {
         </div>
       )}
 
-      {/* Password creation modal */}
+      {/* Password Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Add New Password</h2>
-            <p className="text-gray-600 mb-4">
-              Password creation with encryption will be enabled after Supabase integration.
-            </p>
-            <Button onClick={() => setShowModal(false)} variant="outline">
-              Close
-            </Button>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">
+                {editingPassword ? 'Edit Password' : 'Add New Password'}
+              </h2>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Site Name *
+                </label>
+                <Input
+                  value={formData.siteName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, siteName: e.target.value }))}
+                  placeholder="e.g., Gmail, GitHub"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Username/Email *
+                </label>
+                <Input
+                  value={formData.username}
+                  onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                  placeholder="Enter username or email"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password *
+                </label>
+                <Input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Enter password"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category
+                </label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select category</option>
+                  <option value="Email">Email</option>
+                  <option value="Development">Development</option>
+                  <option value="Entertainment">Entertainment</option>
+                  <option value="Social">Social</option>
+                  <option value="Banking">Banking</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              
+              <div className="flex space-x-3 pt-4">
+                <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700">
+                  {editingPassword ? 'Update Password' : 'Save Password'}
+                </Button>
+                <Button type="button" variant="outline" onClick={closeModal}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

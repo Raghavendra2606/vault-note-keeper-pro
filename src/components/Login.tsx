@@ -4,6 +4,7 @@ import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 
 interface LoginProps {
   onLogin: (email: string) => void;
@@ -16,15 +17,98 @@ const Login = ({ onLogin, onToggleMode, isSignup }: LoginProps) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const { toast } = useToast();
+
+  // Mock registered users database
+  const [registeredUsers] = useState([
+    { email: 'user@example.com', password: 'password123' },
+    { email: 'admin@test.com', password: 'admin123' }
+  ]);
+
+  const validateForm = () => {
+    const newErrors: {[key: string]: string} = {};
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) {
+      newErrors.email = 'Email is required';
+    } else if (!emailRegex.test(email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    // Password validation
+    if (!password) {
+      newErrors.password = 'Password is required';
+    } else if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters long';
+    }
+
+    // Confirm password validation (only for signup)
+    if (isSignup) {
+      if (!confirmPassword) {
+        newErrors.confirmPassword = 'Please confirm your password';
+      } else if (password !== confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
     
-    // Mock authentication - will be replaced with Supabase auth
+    // Mock authentication logic
     setTimeout(() => {
-      onLogin(email);
+      if (isSignup) {
+        // Check if user already exists
+        const userExists = registeredUsers.some(user => user.email === email);
+        if (userExists) {
+          toast({
+            title: "Error",
+            description: "An account with this email already exists.",
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
+        }
+        
+        // Mock user registration
+        toast({
+          title: "Success",
+          description: "Account created successfully! You can now sign in.",
+        });
+        onToggleMode(); // Switch to login mode
+      } else {
+        // Check if user exists and password matches
+        const user = registeredUsers.find(u => u.email === email && u.password === password);
+        if (!user) {
+          toast({
+            title: "Error",
+            description: "Invalid email or password. Please check your credentials.",
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
+        }
+        
+        // Successful login
+        onLogin(email);
+        toast({
+          title: "Success",
+          description: "Welcome back!"
+        });
+      }
       setLoading(false);
     }, 1000);
   };
@@ -54,10 +138,12 @@ const Login = ({ onLogin, onToggleMode, isSignup }: LoginProps) => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
-                    className="pl-10"
-                    required
+                    className={`pl-10 ${errors.email ? 'border-red-500' : ''}`}
                   />
                 </div>
+                {errors.email && (
+                  <p className="text-red-500 text-sm">{errors.email}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -69,8 +155,7 @@ const Login = ({ onLogin, onToggleMode, isSignup }: LoginProps) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
-                    className="pl-10 pr-10"
-                    required
+                    className={`pl-10 pr-10 ${errors.password ? 'border-red-500' : ''}`}
                   />
                   <button
                     type="button"
@@ -80,6 +165,9 @@ const Login = ({ onLogin, onToggleMode, isSignup }: LoginProps) => {
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
+                {errors.password && (
+                  <p className="text-red-500 text-sm">{errors.password}</p>
+                )}
               </div>
 
               {isSignup && (
@@ -88,14 +176,23 @@ const Login = ({ onLogin, onToggleMode, isSignup }: LoginProps) => {
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     <Input
-                      type="password"
+                      type={showConfirmPassword ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Confirm your password"
-                      className="pl-10"
-                      required
+                      className={`pl-10 pr-10 ${errors.confirmPassword ? 'border-red-500' : ''}`}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
                   </div>
+                  {errors.confirmPassword && (
+                    <p className="text-red-500 text-sm">{errors.confirmPassword}</p>
+                  )}
                 </div>
               )}
 
@@ -122,7 +219,10 @@ const Login = ({ onLogin, onToggleMode, isSignup }: LoginProps) => {
 
             <div className="mt-4 text-center">
               <p className="text-xs text-gray-500">
-                Authentication will be powered by Supabase after integration.
+                {!isSignup && (
+                  <>Demo credentials: user@example.com / password123<br/></>
+                )}
+                Full authentication will be powered by Supabase after integration.
               </p>
             </div>
           </CardContent>

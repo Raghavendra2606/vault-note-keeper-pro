@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Edit, Trash2, CheckCircle, Circle, FileText } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, CheckCircle, Circle, FileText, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 interface Note {
   id: string;
@@ -20,9 +21,17 @@ const NotesManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState('all');
   const [showModal, setShowModal] = useState(false);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    priority: 'medium' as 'high' | 'medium' | 'low',
+    dueDate: ''
+  });
+  const { toast } = useToast();
 
   // Mock data - will be replaced with Supabase data
-  const [notes] = useState<Note[]>([
+  const [notes, setNotes] = useState<Note[]>([
     {
       id: '1',
       title: 'Complete project proposal',
@@ -51,6 +60,102 @@ const NotesManager = () => {
     }
   ]);
 
+  const openModal = (note?: Note) => {
+    if (note) {
+      setEditingNote(note);
+      setFormData({
+        title: note.title,
+        description: note.description,
+        priority: note.priority,
+        dueDate: note.dueDate || ''
+      });
+    } else {
+      setEditingNote(null);
+      setFormData({
+        title: '',
+        description: '',
+        priority: 'medium',
+        dueDate: ''
+      });
+    }
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingNote(null);
+    setFormData({
+      title: '',
+      description: '',
+      priority: 'medium',
+      dueDate: ''
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.title.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a title for your note.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (editingNote) {
+      // Update existing note
+      setNotes(prev => prev.map(note => 
+        note.id === editingNote.id 
+          ? { ...note, ...formData, dueDate: formData.dueDate || undefined }
+          : note
+      ));
+      toast({
+        title: "Success",
+        description: "Note updated successfully!"
+      });
+    } else {
+      // Create new note
+      const newNote: Note = {
+        id: Date.now().toString(),
+        ...formData,
+        dueDate: formData.dueDate || undefined,
+        completed: false,
+        createdAt: new Date().toISOString()
+      };
+      setNotes(prev => [newNote, ...prev]);
+      toast({
+        title: "Success",
+        description: "Note created successfully!"
+      });
+    }
+    
+    closeModal();
+  };
+
+  const toggleComplete = (id: string) => {
+    setNotes(prev => prev.map(note => 
+      note.id === id 
+        ? { ...note, completed: !note.completed }
+        : note
+    ));
+    
+    const note = notes.find(n => n.id === id);
+    toast({
+      title: "Success",
+      description: `Note marked as ${note?.completed ? 'pending' : 'completed'}!`
+    });
+  };
+
+  const deleteNote = (id: string) => {
+    setNotes(prev => prev.filter(note => note.id !== id));
+    toast({
+      title: "Success",
+      description: "Note deleted successfully!"
+    });
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high': return 'bg-red-100 text-red-800';
@@ -72,7 +177,7 @@ const NotesManager = () => {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-3xl font-bold text-gray-900">Notes Manager</h1>
-          <Button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={() => openModal()} className="bg-blue-600 hover:bg-blue-700">
             <Plus size={20} className="mr-2" />
             Add Note
           </Button>
@@ -110,10 +215,16 @@ const NotesManager = () => {
                   {note.title}
                 </CardTitle>
                 <div className="flex space-x-2">
-                  <button className="text-gray-400 hover:text-blue-600">
+                  <button 
+                    onClick={() => openModal(note)}
+                    className="text-gray-400 hover:text-blue-600"
+                  >
                     <Edit size={16} />
                   </button>
-                  <button className="text-gray-400 hover:text-red-600">
+                  <button 
+                    onClick={() => deleteNote(note.id)}
+                    className="text-gray-400 hover:text-red-600"
+                  >
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -134,7 +245,10 @@ const NotesManager = () => {
                 {note.description}
               </p>
               <div className="flex items-center justify-between">
-                <button className="flex items-center space-x-2 text-sm text-gray-500 hover:text-blue-600">
+                <button 
+                  onClick={() => toggleComplete(note.id)}
+                  className="flex items-center space-x-2 text-sm text-gray-500 hover:text-blue-600"
+                >
                   {note.completed ? (
                     <>
                       <CheckCircle size={16} className="text-green-600" />
@@ -164,17 +278,83 @@ const NotesManager = () => {
         </div>
       )}
 
-      {/* Note: Modal for adding/editing notes will be implemented after Supabase integration */}
+      {/* Note Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Add New Note</h2>
-            <p className="text-gray-600 mb-4">
-              Note creation will be enabled after Supabase integration.
-            </p>
-            <Button onClick={() => setShowModal(false)} variant="outline">
-              Close
-            </Button>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">
+                {editingNote ? 'Edit Note' : 'Add New Note'}
+              </h2>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Title *
+                </label>
+                <Input
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Enter note title"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter note description"
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Priority
+                </label>
+                <select
+                  value={formData.priority}
+                  onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as 'high' | 'medium' | 'low' }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Due Date
+                </label>
+                <Input
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                />
+              </div>
+              
+              <div className="flex space-x-3 pt-4">
+                <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700">
+                  {editingNote ? 'Update Note' : 'Create Note'}
+                </Button>
+                <Button type="button" variant="outline" onClick={closeModal}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
