@@ -22,11 +22,26 @@ const Login = ({ onLogin, onToggleMode, isSignup }: LoginProps) => {
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const { toast } = useToast();
 
-  // Mock registered users database
-  const [registeredUsers] = useState([
-    { email: 'user@example.com', password: 'password123' },
-    { email: 'admin@test.com', password: 'admin123' }
-  ]);
+  // Mock registered users database - using localStorage to persist users
+  const getRegisteredUsers = () => {
+    const users = localStorage.getItem('registeredUsers');
+    if (users) {
+      return JSON.parse(users);
+    }
+    // Default users
+    const defaultUsers = [
+      { email: 'user@example.com', password: 'password123' },
+      { email: 'admin@test.com', password: 'admin123' }
+    ];
+    localStorage.setItem('registeredUsers', JSON.stringify(defaultUsers));
+    return defaultUsers;
+  };
+
+  const addUser = (email: string, password: string) => {
+    const users = getRegisteredUsers();
+    users.push({ email, password });
+    localStorage.setItem('registeredUsers', JSON.stringify(users));
+  };
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
@@ -70,9 +85,11 @@ const Login = ({ onLogin, onToggleMode, isSignup }: LoginProps) => {
     
     // Mock authentication logic
     setTimeout(() => {
+      const registeredUsers = getRegisteredUsers();
+      
       if (isSignup) {
         // Check if user already exists
-        const userExists = registeredUsers.some(user => user.email === email);
+        const userExists = registeredUsers.some((user: any) => user.email === email);
         if (userExists) {
           toast({
             title: "Error",
@@ -83,15 +100,22 @@ const Login = ({ onLogin, onToggleMode, isSignup }: LoginProps) => {
           return;
         }
         
-        // Mock user registration
+        // Add new user to mock database
+        addUser(email, password);
+        
         toast({
           title: "Success",
           description: "Account created successfully! You can now sign in.",
         });
-        onToggleMode(); // Switch to login mode
+        
+        // Reset form and switch to login mode
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        onToggleMode();
       } else {
         // Check if user exists and password matches
-        const user = registeredUsers.find(u => u.email === email && u.password === password);
+        const user = registeredUsers.find((u: any) => u.email === email && u.password === password);
         if (!user) {
           toast({
             title: "Error",
