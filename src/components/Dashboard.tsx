@@ -1,26 +1,124 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, CheckCircle, Clock, Shield } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
+import { User } from '@supabase/supabase-js';
 
 interface DashboardProps {
-  user: { email: string };
+  user: User;
+}
+
+interface Stats {
+  totalNotes: number;
+  completedTasks: number;
+  pendingTasks: number;
+  savedPasswords: number;
+}
+
+interface Note {
+  id: string;
+  title: string;
+  priority: string;
+  due_date: string | null;
+  completed: boolean;
 }
 
 const Dashboard = ({ user }: DashboardProps) => {
-  // Mock data - will be replaced with real data from Supabase
-  const stats = {
-    totalNotes: 12,
-    completedTasks: 8,
-    pendingTasks: 4,
-    savedPasswords: 15
+  const [stats, setStats] = useState<Stats>({
+    totalNotes: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    savedPasswords: 0
+  });
+  const [recentNotes, setRecentNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [user]);
+
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch notes statistics
+      const { data: notes, error: notesError } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (notesError) throw notesError;
+
+      // Fetch passwords count
+      const { data: passwords, error: passwordsError } = await supabase
+        .from('passwords')
+        .select('id')
+        .eq('user_id', user.id);
+
+      if (passwordsError) throw passwordsError;
+
+      // Calculate stats
+      const totalNotes = notes?.length || 0;
+      const completedTasks = notes?.filter(note => note.completed).length || 0;
+      const pendingTasks = totalNotes - completedTasks;
+      const savedPasswords = passwords?.length || 0;
+
+      setStats({
+        totalNotes,
+        completedTasks,
+        pendingTasks,
+        savedPasswords
+      });
+
+      // Get recent notes (last 3)
+      const sortedNotes = notes?.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      ).slice(0, 3) || [];
+
+      setRecentNotes(sortedNotes);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const formatDueDate = (dueDate: string | null) => {
+    if (!dueDate) return 'No due date';
+    
+    const date = new Date(dueDate);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === tomorrow.toDateString()) {
+      return 'Tomorrow';
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Welcome back, {user.email.split('@')[0]}!
+          Welcome back, {user.email?.split('@')[0]}!
         </h1>
         <p className="text-gray-600">Here's what's happening with your notes and security.</p>
       </div>
@@ -34,7 +132,7 @@ const Dashboard = ({ user }: DashboardProps) => {
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalNotes}</div>
             <p className="text-xs text-muted-foreground">
-              +2 from last week
+              Your personal notes
             </p>
           </CardContent>
         </Card>
@@ -47,7 +145,7 @@ const Dashboard = ({ user }: DashboardProps) => {
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{stats.completedTasks}</div>
             <p className="text-xs text-muted-foreground">
-              {Math.round((stats.completedTasks / stats.totalNotes) * 100)}% completion rate
+              {stats.totalNotes > 0 ? Math.round((stats.completedTasks / stats.totalNotes) * 100) : 0}% completion rate
             </p>
           </CardContent>
         </Card>
@@ -60,7 +158,7 @@ const Dashboard = ({ user }: DashboardProps) => {
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">{stats.pendingTasks}</div>
             <p className="text-xs text-muted-foreground">
-              2 due this week
+              Tasks to complete
             </p>
           </CardContent>
         </Card>
@@ -86,22 +184,25 @@ const Dashboard = ({ user }: DashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {[
-                { title: "Project deadline review", priority: "high", dueDate: "Today" },
-                { title: "Buy groceries", priority: "medium", dueDate: "Tomorrow" },
-                { title: "Call dentist", priority: "low", dueDate: "This week" }
-              ].map((note, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-3 h-3 rounded-full ${
-                      note.priority === 'high' ? 'bg-red-500' :
-                      note.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-                    }`} />
-                    <span className="font-medium">{note.title}</span>
+              {recentNotes.length > 0 ? (
+                recentNotes.map((note) => (
+                  <div key={note.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-3 h-3 rounded-full ${
+                        note.priority === 'high' ? 'bg-red-500' :
+                        note.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                      }`} />
+                      <span className="font-medium">{note.title}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">{formatDueDate(note.due_date)}</span>
                   </div>
-                  <span className="text-sm text-gray-500">{note.dueDate}</span>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <p>No notes yet. Create your first note!</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
@@ -113,15 +214,21 @@ const Dashboard = ({ user }: DashboardProps) => {
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span>Password Strength</span>
-                <span className="text-green-600 font-medium">Strong</span>
+                <span>Account Security</span>
+                <span className="text-green-600 font-medium">Secure</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-green-600 h-2 rounded-full" style={{width: '85%'}}></div>
+                <div className="bg-green-600 h-2 rounded-full" style={{width: '100%'}}></div>
               </div>
               <div className="text-sm text-gray-600">
-                Most of your passwords are strong and unique.
+                Your account is protected with Supabase authentication.
               </div>
+              {stats.savedPasswords > 0 && (
+                <div className="mt-4 text-sm text-gray-600">
+                  <Shield className="inline w-4 h-4 mr-1" />
+                  {stats.savedPasswords} passwords safely stored
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

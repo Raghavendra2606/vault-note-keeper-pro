@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LoginProps {
   onLogin: (email: string) => void;
@@ -21,27 +22,6 @@ const Login = ({ onLogin, onToggleMode, isSignup }: LoginProps) => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const { toast } = useToast();
-
-  // Mock registered users database - using localStorage to persist users
-  const getRegisteredUsers = () => {
-    const users = localStorage.getItem('registeredUsers');
-    if (users) {
-      return JSON.parse(users);
-    }
-    // Default users
-    const defaultUsers = [
-      { email: 'user@example.com', password: 'password123' },
-      { email: 'admin@test.com', password: 'admin123' }
-    ];
-    localStorage.setItem('registeredUsers', JSON.stringify(defaultUsers));
-    return defaultUsers;
-  };
-
-  const addUser = (email: string, password: string) => {
-    const users = getRegisteredUsers();
-    users.push({ email, password });
-    localStorage.setItem('registeredUsers', JSON.stringify(users));
-  };
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
@@ -83,29 +63,21 @@ const Login = ({ onLogin, onToggleMode, isSignup }: LoginProps) => {
 
     setLoading(true);
     
-    // Mock authentication logic
-    setTimeout(() => {
-      const registeredUsers = getRegisteredUsers();
-      
+    try {
       if (isSignup) {
-        // Check if user already exists
-        const userExists = registeredUsers.some((user: any) => user.email === email);
-        if (userExists) {
-          toast({
-            title: "Error",
-            description: "An account with this email already exists.",
-            variant: "destructive"
-          });
-          setLoading(false);
-          return;
-        }
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`
+          }
+        });
         
-        // Add new user to mock database
-        addUser(email, password);
+        if (error) throw error;
         
         toast({
           title: "Success",
-          description: "Account created successfully! You can now sign in.",
+          description: "Account created successfully! Please check your email to verify your account.",
         });
         
         // Reset form and switch to login mode
@@ -114,27 +86,28 @@ const Login = ({ onLogin, onToggleMode, isSignup }: LoginProps) => {
         setConfirmPassword('');
         onToggleMode();
       } else {
-        // Check if user exists and password matches
-        const user = registeredUsers.find((u: any) => u.email === email && u.password === password);
-        if (!user) {
-          toast({
-            title: "Error",
-            description: "Invalid email or password. Please check your credentials.",
-            variant: "destructive"
-          });
-          setLoading(false);
-          return;
-        }
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
         
-        // Successful login
-        onLogin(email);
+        if (error) throw error;
+        
+        // Login success is handled by the auth state change listener
         toast({
           title: "Success",
           description: "Welcome back!"
         });
       }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "An error occurred. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -238,15 +211,6 @@ const Login = ({ onLogin, onToggleMode, isSignup }: LoginProps) => {
                 >
                   {isSignup ? 'Sign in' : 'Sign up'}
                 </button>
-              </p>
-            </div>
-
-            <div className="mt-4 text-center">
-              <p className="text-xs text-gray-500">
-                {!isSignup && (
-                  <>Demo credentials: user@example.com / password123<br/></>
-                )}
-                Full authentication will be powered by Supabase after integration.
               </p>
             </div>
           </CardContent>
