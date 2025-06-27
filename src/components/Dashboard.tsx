@@ -22,6 +22,7 @@ interface Note {
   priority: string;
   due_date: string | null;
   completed: boolean;
+  created_at: string;
 }
 
 const Dashboard = ({ user }: DashboardProps) => {
@@ -35,18 +36,27 @@ const Dashboard = ({ user }: DashboardProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardData();
+    if (user) {
+      fetchDashboardData();
+    }
   }, [user]);
 
   const fetchDashboardData = async () => {
     try {
+      console.log('Fetching dashboard data for user:', user.id);
+      
       // Fetch notes statistics
       const { data: notes, error: notesError } = await supabase
         .from('notes')
         .select('*')
         .eq('user_id', user.id);
 
-      if (notesError) throw notesError;
+      if (notesError) {
+        console.error('Error fetching notes:', notesError);
+        throw notesError;
+      }
+
+      console.log('Fetched notes:', notes);
 
       // Fetch passwords count
       const { data: passwords, error: passwordsError } = await supabase
@@ -54,13 +64,20 @@ const Dashboard = ({ user }: DashboardProps) => {
         .select('id')
         .eq('user_id', user.id);
 
-      if (passwordsError) throw passwordsError;
+      if (passwordsError) {
+        console.error('Error fetching passwords:', passwordsError);
+        throw passwordsError;
+      }
+
+      console.log('Fetched passwords:', passwords);
 
       // Calculate stats
       const totalNotes = notes?.length || 0;
       const completedTasks = notes?.filter(note => note.completed).length || 0;
       const pendingTasks = totalNotes - completedTasks;
       const savedPasswords = passwords?.length || 0;
+
+      console.log('Calculated stats:', { totalNotes, completedTasks, pendingTasks, savedPasswords });
 
       setStats({
         totalNotes,
@@ -74,6 +91,7 @@ const Dashboard = ({ user }: DashboardProps) => {
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       ).slice(0, 3) || [];
 
+      console.log('Recent notes:', sortedNotes);
       setRecentNotes(sortedNotes);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -96,6 +114,19 @@ const Dashboard = ({ user }: DashboardProps) => {
       return 'Tomorrow';
     } else {
       return date.toLocaleDateString();
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return 'bg-red-500';
+      case 'medium':
+        return 'bg-yellow-500';
+      case 'low':
+        return 'bg-green-500';
+      default:
+        return 'bg-gray-500';
     }
   };
 
@@ -188,11 +219,16 @@ const Dashboard = ({ user }: DashboardProps) => {
                 recentNotes.map((note) => (
                   <div key={note.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center space-x-3">
-                      <div className={`w-3 h-3 rounded-full ${
-                        note.priority === 'high' ? 'bg-red-500' :
-                        note.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-                      }`} />
-                      <span className="font-medium">{note.title}</span>
+                      <div className={`w-3 h-3 rounded-full ${getPriorityColor(note.priority)}`} />
+                      <div>
+                        <span className="font-medium">{note.title}</span>
+                        {note.completed && (
+                          <div className="flex items-center text-green-600 text-xs mt-1">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Completed
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <span className="text-sm text-gray-500">{formatDueDate(note.due_date)}</span>
                   </div>
