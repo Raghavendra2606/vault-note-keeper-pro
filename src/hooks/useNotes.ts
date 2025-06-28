@@ -16,6 +16,27 @@ interface Note {
   user_id: string;
 }
 
+// Helper function to ensure priority is properly typed
+const validatePriority = (priority: string): 'high' | 'medium' | 'low' => {
+  if (priority === 'high' || priority === 'medium' || priority === 'low') {
+    return priority;
+  }
+  return 'medium'; // default fallback
+};
+
+// Helper function to convert database row to Note type
+const mapDatabaseRowToNote = (row: any): Note => ({
+  id: row.id,
+  title: row.title,
+  description: row.description || '',
+  priority: validatePriority(row.priority),
+  due_date: row.due_date,
+  completed: row.completed,
+  created_at: row.created_at,
+  updated_at: row.updated_at,
+  user_id: row.user_id
+});
+
 export const useNotes = (user: User | null) => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +63,8 @@ export const useNotes = (user: User | null) => {
       }
 
       console.log('Fetched notes:', data);
-      setNotes(data || []);
+      const typedNotes = (data || []).map(mapDatabaseRowToNote);
+      setNotes(typedNotes);
     } catch (error) {
       console.error('Error in fetchNotes:', error);
       toast({
@@ -79,14 +101,15 @@ export const useNotes = (user: User | null) => {
       }
 
       console.log('Created note:', data);
-      setNotes(prev => [data, ...prev]);
+      const typedNote = mapDatabaseRowToNote(data);
+      setNotes(prev => [typedNote, ...prev]);
       
       toast({
         title: "Success",
         description: "Note created successfully!"
       });
 
-      return data;
+      return typedNote;
     } catch (error) {
       console.error('Error in createNote:', error);
       toast({
@@ -115,14 +138,15 @@ export const useNotes = (user: User | null) => {
       }
 
       console.log('Updated note:', data);
-      setNotes(prev => prev.map(note => note.id === id ? data : note));
+      const typedNote = mapDatabaseRowToNote(data);
+      setNotes(prev => prev.map(note => note.id === id ? typedNote : note));
       
       toast({
         title: "Success",
         description: "Note updated successfully!"
       });
 
-      return data;
+      return typedNote;
     } catch (error) {
       console.error('Error in updateNote:', error);
       toast({
