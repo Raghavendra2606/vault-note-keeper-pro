@@ -16,14 +16,14 @@ interface DashboardStatsProps {
 
 const DashboardStats = ({ stats }: DashboardStatsProps) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
       <Card className="hover:shadow-lg transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Notes</CardTitle>
           <FileText className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.totalNotes}</div>
+          <div className="text-xl md:text-2xl font-bold">{stats.totalNotes}</div>
           <p className="text-xs text-muted-foreground">
             Your personal notes
           </p>
@@ -36,7 +36,7 @@ const DashboardStats = ({ stats }: DashboardStatsProps) => {
           <CheckCircle className="h-4 w-4 text-green-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-green-600">{stats.completedTasks}</div>
+          <div className="text-xl md:text-2xl font-bold text-green-600">{stats.completedTasks}</div>
           <p className="text-xs text-muted-foreground">
             {stats.totalNotes > 0 ? Math.round((stats.completedTasks / stats.totalNotes) * 100) : 0}% completion rate
           </p>
@@ -49,7 +49,7 @@ const DashboardStats = ({ stats }: DashboardStatsProps) => {
           <Clock className="h-4 w-4 text-orange-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-orange-600">{stats.pendingTasks}</div>
+          <div className="text-xl md:text-2xl font-bold text-orange-600">{stats.pendingTasks}</div>
           <p className="text-xs text-muted-foreground">
             Tasks to complete
           </p>
@@ -62,7 +62,7 @@ const DashboardStats = ({ stats }: DashboardStatsProps) => {
           <Shield className="h-4 w-4 text-blue-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-blue-600">{stats.savedPasswords}</div>
+          <div className="text-xl md:text-2xl font-bold text-blue-600">{stats.savedPasswords}</div>
           <p className="text-xs text-muted-foreground">
             All encrypted & secure
           </p>

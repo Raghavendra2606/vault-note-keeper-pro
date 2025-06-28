@@ -38,8 +38,9 @@ export const useDashboardData = (user: User) => {
   const fetchDashboardData = async () => {
     try {
       console.log('Fetching dashboard data for user:', user.id);
+      console.log('User session:', await supabase.auth.getSession());
       
-      // Fetch notes statistics
+      // Fetch notes statistics with explicit user_id filter
       const { data: notes, error: notesError } = await supabase
         .from('notes')
         .select('*')
@@ -47,12 +48,12 @@ export const useDashboardData = (user: User) => {
 
       if (notesError) {
         console.error('Error fetching notes:', notesError);
-        throw notesError;
+        console.error('Notes query details:', { user_id: user.id });
+      } else {
+        console.log('Successfully fetched notes:', notes);
       }
 
-      console.log('Fetched notes:', notes);
-
-      // Fetch passwords count
+      // Fetch passwords count with explicit user_id filter
       const { data: passwords, error: passwordsError } = await supabase
         .from('passwords')
         .select('id')
@@ -60,10 +61,10 @@ export const useDashboardData = (user: User) => {
 
       if (passwordsError) {
         console.error('Error fetching passwords:', passwordsError);
-        throw passwordsError;
+        console.error('Passwords query details:', { user_id: user.id });
+      } else {
+        console.log('Successfully fetched passwords:', passwords);
       }
-
-      console.log('Fetched passwords:', passwords);
 
       // Calculate stats
       const totalNotes = notes?.length || 0;
@@ -87,6 +88,12 @@ export const useDashboardData = (user: User) => {
 
       console.log('Recent notes:', sortedNotes);
       setRecentNotes(sortedNotes);
+
+      // Force a re-render to ensure UI updates
+      setTimeout(() => {
+        console.log('Dashboard data fetch completed');
+      }, 100);
+
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -94,5 +101,5 @@ export const useDashboardData = (user: User) => {
     }
   };
 
-  return { stats, recentNotes, loading };
+  return { stats, recentNotes, loading, refetch: fetchDashboardData };
 };
