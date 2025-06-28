@@ -75,9 +75,9 @@ const Index = () => {
       case 'dashboard':
         return <Dashboard user={user} />;
       case 'notes':
-        return <NotesManager />;
+        return <NotesManager user={user} />;
       case 'passwords':
-        return <PasswordVault />;
+        return <PasswordVault user={user} />;
       case 'profile':
         return <Profile user={user} />;
       default:

@@ -5,71 +5,41 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { usePasswords } from '@/hooks/usePasswords';
+import { User } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
 
-interface Password {
-  id: string;
-  siteName: string;
-  username: string;
-  password: string;
-  category?: string;
-  createdAt: string;
+interface PasswordVaultProps {
+  user: User;
 }
 
-const PasswordVault = () => {
+const PasswordVault = ({ user }: PasswordVaultProps) => {
+  const { passwords, loading, createPassword, updatePassword, deletePassword } = usePasswords(user);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [editingPassword, setEditingPassword] = useState<Password | null>(null);
+  const [editingPassword, setEditingPassword] = useState<any>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
-    siteName: '',
+    site_name: '',
     username: '',
     password: '',
     category: ''
   });
   const { toast } = useToast();
 
-  // Mock data - will be replaced with encrypted Supabase data
-  const [passwords, setPasswords] = useState<Password[]>([
-    {
-      id: '1',
-      siteName: 'Gmail',
-      username: 'user@example.com',
-      password: 'SecurePass123!',
-      category: 'Email',
-      createdAt: '2024-01-10'
-    },
-    {
-      id: '2',
-      siteName: 'GitHub',
-      username: 'developer',
-      password: 'MyGitHub2024#',
-      category: 'Development',
-      createdAt: '2024-01-09'
-    },
-    {
-      id: '3',
-      siteName: 'Netflix',
-      username: 'streaming_user',
-      password: 'WatchMovies456$',
-      category: 'Entertainment',
-      createdAt: '2024-01-08'
-    }
-  ]);
-
-  const openModal = (password?: Password) => {
+  const openModal = (password?: any) => {
     if (password) {
       setEditingPassword(password);
       setFormData({
-        siteName: password.siteName,
+        site_name: password.site_name,
         username: password.username,
-        password: password.password,
+        password: password.encrypted_password,
         category: password.category || ''
       });
     } else {
       setEditingPassword(null);
       setFormData({
-        siteName: '',
+        site_name: '',
         username: '',
         password: '',
         category: ''
@@ -82,17 +52,17 @@ const PasswordVault = () => {
     setShowModal(false);
     setEditingPassword(null);
     setFormData({
-      siteName: '',
+      site_name: '',
       username: '',
       password: '',
       category: ''
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.siteName.trim() || !formData.username.trim() || !formData.password.trim()) {
+    if (!formData.site_name.trim() || !formData.username.trim() || !formData.password.trim()) {
       toast({
         title: "Error",
         description: "Please fill in all required fields.",
@@ -101,41 +71,26 @@ const PasswordVault = () => {
       return;
     }
 
-    if (editingPassword) {
-      // Update existing password
-      setPasswords(prev => prev.map(pwd => 
-        pwd.id === editingPassword.id 
-          ? { ...pwd, ...formData, category: formData.category || undefined }
-          : pwd
-      ));
-      toast({
-        title: "Success",
-        description: "Password updated successfully!"
-      });
-    } else {
-      // Create new password
-      const newPassword: Password = {
-        id: Date.now().toString(),
-        ...formData,
-        category: formData.category || undefined,
-        createdAt: new Date().toISOString()
-      };
-      setPasswords(prev => [newPassword, ...prev]);
-      toast({
-        title: "Success",
-        description: "Password saved successfully!"
-      });
+    try {
+      if (editingPassword) {
+        await updatePassword(editingPassword.id, {
+          site_name: formData.site_name,
+          username: formData.username,
+          encrypted_password: formData.password,
+          category: formData.category || undefined
+        });
+      } else {
+        await createPassword({
+          site_name: formData.site_name,
+          username: formData.username,
+          password: formData.password,
+          category: formData.category || undefined
+        });
+      }
+      closeModal();
+    } catch (error) {
+      // Error handling is done in the hook
     }
-    
-    closeModal();
-  };
-
-  const deletePassword = (id: string) => {
-    setPasswords(prev => prev.filter(pwd => pwd.id !== id));
-    toast({
-      title: "Success",
-      description: "Password deleted successfully!"
-    });
   };
 
   const togglePasswordVisibility = (id: string) => {
@@ -157,7 +112,7 @@ const PasswordVault = () => {
   };
 
   const filteredPasswords = passwords.filter(password =>
-    password.siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    password.site_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     password.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (password.category && password.category.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -172,6 +127,21 @@ const PasswordVault = () => {
     };
     return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-48 bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -199,7 +169,7 @@ const PasswordVault = () => {
             <span className="text-yellow-800 font-medium">Security Notice</span>
           </div>
           <p className="text-yellow-700 text-sm mt-1">
-            Password encryption will be enabled after Supabase integration. Currently showing demo data.
+            Passwords are now stored in the database. Enhanced encryption will be added in future updates.
           </p>
         </div>
       </div>
@@ -209,7 +179,7 @@ const PasswordVault = () => {
           <Card key={password.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
-                <CardTitle className="text-lg">{password.siteName}</CardTitle>
+                <CardTitle className="text-lg">{password.site_name}</CardTitle>
                 <div className="flex space-x-2">
                   <button 
                     onClick={() => openModal(password)}
@@ -250,7 +220,7 @@ const PasswordVault = () => {
                 <div className="flex items-center space-x-2">
                   <span className="text-gray-900 font-mono">
                     {visiblePasswords.has(password.id) 
-                      ? password.password 
+                      ? password.encrypted_password 
                       : '••••••••••••'
                     }
                   </span>
@@ -265,7 +235,7 @@ const PasswordVault = () => {
                     )}
                   </button>
                   <button
-                    onClick={() => copyToClipboard(password.password, 'Password')}
+                    onClick={() => copyToClipboard(password.encrypted_password, 'Password')}
                     className="text-gray-400 hover:text-blue-600"
                   >
                     <Copy size={14} />
@@ -274,7 +244,7 @@ const PasswordVault = () => {
               </div>
               
               <div className="text-xs text-gray-400 pt-2 border-t">
-                Added {new Date(password.createdAt).toLocaleDateString()}
+                Added {new Date(password.created_at).toLocaleDateString()}
               </div>
             </CardContent>
           </Card>
@@ -311,8 +281,8 @@ const PasswordVault = () => {
                   Site Name *
                 </label>
                 <Input
-                  value={formData.siteName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, siteName: e.target.value }))}
+                  value={formData.site_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, site_name: e.target.value }))}
                   placeholder="e.g., Gmail, GitHub"
                   required
                 />

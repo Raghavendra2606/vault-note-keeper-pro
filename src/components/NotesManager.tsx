@@ -5,69 +5,34 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { useNotes } from '@/hooks/useNotes';
+import { User } from '@supabase/supabase-js';
 
-interface Note {
-  id: string;
-  title: string;
-  description: string;
-  priority: 'high' | 'medium' | 'low';
-  dueDate?: string;
-  completed: boolean;
-  createdAt: string;
+interface NotesManagerProps {
+  user: User;
 }
 
-const NotesManager = () => {
+const NotesManager = ({ user }: NotesManagerProps) => {
+  const { notes, loading, createNote, updateNote, deleteNote, toggleComplete } = useNotes(user);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState('all');
   const [showModal, setShowModal] = useState(false);
-  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [editingNote, setEditingNote] = useState<any>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     priority: 'medium' as 'high' | 'medium' | 'low',
-    dueDate: ''
+    due_date: ''
   });
-  const { toast } = useToast();
 
-  // Mock data - will be replaced with Supabase data
-  const [notes, setNotes] = useState<Note[]>([
-    {
-      id: '1',
-      title: 'Complete project proposal',
-      description: 'Finish the quarterly project proposal for the marketing team',
-      priority: 'high',
-      dueDate: '2024-01-15',
-      completed: false,
-      createdAt: '2024-01-10'
-    },
-    {
-      id: '2',
-      title: 'Buy groceries',
-      description: 'Milk, bread, eggs, vegetables for the week',
-      priority: 'medium',
-      dueDate: '2024-01-12',
-      completed: true,
-      createdAt: '2024-01-09'
-    },
-    {
-      id: '3',
-      title: 'Schedule dentist appointment',
-      description: 'Regular checkup and cleaning',
-      priority: 'low',
-      completed: false,
-      createdAt: '2024-01-08'
-    }
-  ]);
-
-  const openModal = (note?: Note) => {
+  const openModal = (note?: any) => {
     if (note) {
       setEditingNote(note);
       setFormData({
         title: note.title,
-        description: note.description,
+        description: note.description || '',
         priority: note.priority,
-        dueDate: note.dueDate || ''
+        due_date: note.due_date || ''
       });
     } else {
       setEditingNote(null);
@@ -75,7 +40,7 @@ const NotesManager = () => {
         title: '',
         description: '',
         priority: 'medium',
-        dueDate: ''
+        due_date: ''
       });
     }
     setShowModal(true);
@@ -88,72 +53,37 @@ const NotesManager = () => {
       title: '',
       description: '',
       priority: 'medium',
-      dueDate: ''
+      due_date: ''
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.title.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a title for your note.",
-        variant: "destructive"
-      });
       return;
     }
 
-    if (editingNote) {
-      // Update existing note
-      setNotes(prev => prev.map(note => 
-        note.id === editingNote.id 
-          ? { ...note, ...formData, dueDate: formData.dueDate || undefined }
-          : note
-      ));
-      toast({
-        title: "Success",
-        description: "Note updated successfully!"
-      });
-    } else {
-      // Create new note
-      const newNote: Note = {
-        id: Date.now().toString(),
-        ...formData,
-        dueDate: formData.dueDate || undefined,
-        completed: false,
-        createdAt: new Date().toISOString()
-      };
-      setNotes(prev => [newNote, ...prev]);
-      toast({
-        title: "Success",
-        description: "Note created successfully!"
-      });
+    try {
+      if (editingNote) {
+        await updateNote(editingNote.id, {
+          title: formData.title,
+          description: formData.description,
+          priority: formData.priority,
+          due_date: formData.due_date || undefined
+        });
+      } else {
+        await createNote({
+          title: formData.title,
+          description: formData.description,
+          priority: formData.priority,
+          due_date: formData.due_date || undefined
+        });
+      }
+      closeModal();
+    } catch (error) {
+      // Error handling is done in the hook
     }
-    
-    closeModal();
-  };
-
-  const toggleComplete = (id: string) => {
-    setNotes(prev => prev.map(note => 
-      note.id === id 
-        ? { ...note, completed: !note.completed }
-        : note
-    ));
-    
-    const note = notes.find(n => n.id === id);
-    toast({
-      title: "Success",
-      description: `Note marked as ${note?.completed ? 'pending' : 'completed'}!`
-    });
-  };
-
-  const deleteNote = (id: string) => {
-    setNotes(prev => prev.filter(note => note.id !== id));
-    toast({
-      title: "Success",
-      description: "Note deleted successfully!"
-    });
   };
 
   const getPriorityColor = (priority: string) => {
@@ -167,10 +97,25 @@ const NotesManager = () => {
 
   const filteredNotes = notes.filter(note => {
     const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         note.description.toLowerCase().includes(searchTerm.toLowerCase());
+                         (note.description && note.description.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesFilter = filterPriority === 'all' || note.priority === filterPriority;
     return matchesSearch && matchesFilter;
   });
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-48 bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -233,17 +178,19 @@ const NotesManager = () => {
                 <Badge className={getPriorityColor(note.priority)}>
                   {note.priority.toUpperCase()}
                 </Badge>
-                {note.dueDate && (
+                {note.due_date && (
                   <Badge variant="outline">
-                    Due: {new Date(note.dueDate).toLocaleDateString()}
+                    Due: {new Date(note.due_date).toLocaleDateString()}
                   </Badge>
                 )}
               </div>
             </CardHeader>
             <CardContent>
-              <p className={`text-gray-600 mb-4 ${note.completed ? 'line-through' : ''}`}>
-                {note.description}
-              </p>
+              {note.description && (
+                <p className={`text-gray-600 mb-4 ${note.completed ? 'line-through' : ''}`}>
+                  {note.description}
+                </p>
+              )}
               <div className="flex items-center justify-between">
                 <button 
                   onClick={() => toggleComplete(note.id)}
@@ -262,7 +209,7 @@ const NotesManager = () => {
                   )}
                 </button>
                 <span className="text-xs text-gray-400">
-                  {new Date(note.createdAt).toLocaleDateString()}
+                  {new Date(note.created_at).toLocaleDateString()}
                 </span>
               </div>
             </CardContent>
@@ -341,8 +288,8 @@ const NotesManager = () => {
                 </label>
                 <Input
                   type="date"
-                  value={formData.dueDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                  value={formData.due_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
                 />
               </div>
               
