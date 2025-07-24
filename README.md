@@ -1,8 +1,88 @@
-# Welcome to your Lovable project
+# VaultNotes
+
+A secure, modern note-taking and password management application built with React, TypeScript, and Supabase.
+
+## Features
+
+- 📝 **Secure Note Management**: Create, edit, and organize your notes with priority levels
+- 🔐 **Password Vault**: Securely store and manage your passwords
+- 🛡️ **User Authentication**: Secure login and signup with email verification
+- 📊 **Dashboard**: Overview of your notes and security metrics
+- 🎨 **Modern UI**: Beautiful, responsive design with animations
+- 🚀 **Fast Performance**: Built with Vite for optimal performance
+
+## Tech Stack
+
+- **Frontend**: React 18, TypeScript, Tailwind CSS
+- **Backend**: Supabase (Database, Authentication, Real-time)
+- **UI Components**: Radix UI, Lucide Icons
+- **Build Tool**: Vite
+- **Deployment**: Docker, Nginx
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+ 
+- Docker (optional)
+- Supabase account
+
+### Local Development
+
+1. **Clone the repository**
+   ```bash
+   git clone <YOUR_GIT_URL>
+   cd vaultnotes
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up Supabase**
+   - Create a new Supabase project
+   - Copy your project URL and anon key
+   - The app is pre-configured with the necessary database schema
+
+4. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+5. **Open your browser**
+   Navigate to `http://localhost:5173`
+
+### Docker Deployment
+
+1. **Build the Docker image**
+   ```bash
+   docker build -t vaultnotes .
+   ```
+
+2. **Run the container**
+   ```bash
+   docker run -p 3000:80 vaultnotes
+   ```
+
+3. **Or use Docker Compose**
+   ```bash
+   docker-compose up -d
+   ```
+
+### Production Deployment
+
+The application can be deployed to any platform that supports Docker:
+
+- **Docker Hub**: Push to Docker Hub and deploy anywhere
+- **AWS ECS/Fargate**: Use the provided Docker image
+- **Google Cloud Run**: Deploy directly from the repository
+- **Azure Container Instances**: Use the container image
+- **DigitalOcean App Platform**: Deploy from GitHub
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/b1d7cf72-4ddb-402e-8e18-04dd60610964
+**Lovable URL**: https://lovable.dev/projects/b1d7cf72-4ddb-402e-8e18-04dd60610964
 
 ## How can I edit this code?
 
@@ -13,60 +93,6 @@ There are several ways of editing your application.
 Simply visit the [Lovable Project](https://lovable.dev/projects/b1d7cf72-4ddb-402e-8e18-04dd60610964) and start prompting.
 
 Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/b1d7cf72-4ddb-402e-8e18-04dd60610964) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
 
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
