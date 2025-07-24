@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface Stats {
   totalNotes: number;
-  completedTasks: number;
+  completedNotes: number;
   pendingTasks: number;
   savedPasswords: number;
 }
@@ -22,7 +22,7 @@ interface Note {
 export const useDashboardData = (user: User) => {
   const [stats, setStats] = useState<Stats>({
     totalNotes: 0,
-    completedTasks: 0,
+    completedNotes: 0,
     pendingTasks: 0,
     savedPasswords: 0
   });
@@ -68,15 +68,15 @@ export const useDashboardData = (user: User) => {
 
       // Calculate stats
       const totalNotes = notes?.length || 0;
-      const completedTasks = notes?.filter(note => note.completed).length || 0;
-      const pendingTasks = totalNotes - completedTasks;
+      const completedNotes = notes?.filter(note => note.completed).length || 0;
+      const pendingTasks = totalNotes - completedNotes;
       const savedPasswords = passwords?.length || 0;
 
-      console.log('Calculated stats:', { totalNotes, completedTasks, pendingTasks, savedPasswords });
+      console.log('Calculated stats:', { totalNotes, completedNotes, pendingTasks, savedPasswords });
 
       setStats({
         totalNotes,
-        completedTasks,
+        completedNotes,
         pendingTasks,
         savedPasswords
       });
